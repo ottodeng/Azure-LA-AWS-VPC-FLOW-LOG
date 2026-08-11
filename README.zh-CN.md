@@ -33,6 +33,21 @@ openclaw skills install git:ottodeng/Azure-LA-AWS-VPC-FLOW-LOG@main
 Skill 会先询问缺少的非敏感前置条件，不会要求用户在对话中粘贴 Secret 或
 Bearer Token。
 
+## 客户配置文件
+
+不要把 Azure 标识写进对话或报告。应让客户创建一个被 Git 忽略的环境文件：
+
+```bash
+mkdir -p .enterprise-config
+cp config/openclaw.env.example .enterprise-config/openclaw.env
+```
+
+由客户填写 `.enterprise-config/openclaw.env`。Workspace、Subscription、
+Tenant、Group、Agent 和 Endpoint ID 虽然不是密码，但属于敏感环境元数据，
+不得提交到公开仓库。
+
+读取程序会拒绝包含 `SECRET`、`TOKEN`、`PASSWORD` 或 `PRIVATE_KEY` 的配置项。
+
 ## 连接已有 MCP
 
 需要：
@@ -44,10 +59,7 @@ Bearer Token。
 
 ```bash
 python3 scripts/configure_openclaw.py \
-  --mode remote \
-  --url "<https-mcp-url>" \
-  --scope "aws_vpc_flow.read" \
-  --agents "<approved-agent-ids>" \
+  --env-file .enterprise-config/openclaw.env \
   --apply
 
 openclaw mcp login aws-vpc-flow
@@ -127,8 +139,7 @@ python3 scripts/preflight.py --mode server
 
 ```bash
 python3 scripts/configure_openclaw.py \
-  --mode local \
-  --workspace-id "<workspace-customer-id>" \
+  --env-file .enterprise-config/openclaw.env \
   --apply
 
 openclaw mcp doctor aws-vpc-flow --probe

@@ -14,6 +14,26 @@ openclaw skills install git:ottodeng/Azure-LA-AWS-VPC-FLOW-LOG@main
 
 OpenClaw Git installs expect `SKILL.md` at the repository root.
 
+Create the customer configuration from the public sample:
+
+```bash
+mkdir -p .enterprise-config
+cp config/openclaw.env.example .enterprise-config/openclaw.env
+```
+
+Fill the ignored file with environment identifiers, then run:
+
+```bash
+python3 scripts/preflight.py \
+  --env-file .enterprise-config/openclaw.env
+python3 scripts/configure_openclaw.py \
+  --env-file .enterprise-config/openclaw.env \
+  --apply
+```
+
+Do not put secrets or bearer tokens in this file. The parser rejects common
+secret-bearing key names.
+
 ## Runtime requirements
 
 - Python 3.9 or newer.

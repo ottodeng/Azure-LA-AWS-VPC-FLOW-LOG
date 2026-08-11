@@ -12,6 +12,18 @@ Ask:
 Do not ask for a client secret, bearer token, certificate private key, or Azure
 credential in chat.
 
+Create a customer-owned configuration file:
+
+```bash
+mkdir -p "{baseDir}/.enterprise-config"
+cp "{baseDir}/config/openclaw.env.example" \
+  "{baseDir}/.enterprise-config/openclaw.env"
+```
+
+Ask the customer administrator to fill it. IDs and endpoint names are
+sensitive environment metadata even when they are not credentials. Keep the
+file outside Git and do not reproduce its values in reports.
+
 ## Connect an existing enterprise MCP endpoint
 
 Collect:
@@ -27,10 +39,7 @@ Configure:
 
 ```bash
 python3 "{baseDir}/scripts/configure_openclaw.py" \
-  --mode remote \
-  --url "<https-mcp-url>" \
-  --scope "aws_vpc_flow.read" \
-  --agents "<approved-agent-ids>" \
+  --env-file "{baseDir}/.enterprise-config/openclaw.env" \
   --apply
 
 openclaw mcp login aws-vpc-flow
@@ -120,8 +129,7 @@ Collect:
 
 ```bash
 python3 "{baseDir}/scripts/configure_openclaw.py" \
-  --mode local \
-  --workspace-id "<workspace-customer-id>" \
+  --env-file "{baseDir}/.enterprise-config/openclaw.env" \
   --apply
 
 openclaw mcp doctor aws-vpc-flow --probe

@@ -30,6 +30,18 @@ Read `references/onboarding.md` and ask only for missing information.
 Never ask the user to paste a client secret, bearer token, certificate private
 key, Azure credential file, or OpenClaw OAuth database value into chat.
 
+Prefer customer-owned configuration:
+
+```bash
+mkdir -p "{baseDir}/.enterprise-config"
+cp "{baseDir}/config/openclaw.env.example" \
+  "{baseDir}/.enterprise-config/openclaw.env"
+```
+
+Ask the customer administrator to fill the ignored file. Treat Azure and Entra
+identifiers as sensitive metadata even though they are not credentials. Do not
+copy their values into chat, reports, logs, or committed files.
+
 ## Existing enterprise MCP
 
 Collect:
@@ -45,17 +57,12 @@ Configure:
 
 ```bash
 python3 "{baseDir}/scripts/configure_openclaw.py" \
-  --mode remote \
-  --url "<mcp-url>" \
-  --scope "aws_vpc_flow.read" \
-  --agents "<approved-agent-ids>" \
+  --env-file "{baseDir}/.enterprise-config/openclaw.env" \
   --apply
 
 openclaw mcp login aws-vpc-flow
 openclaw mcp doctor aws-vpc-flow --probe
 ```
-
-Add `--auth-profile "<profile-id>"` when supplied.
 
 Do not query until `doctor --probe` succeeds and lists the expected tools.
 
@@ -95,8 +102,7 @@ Collect the workspace customer ID and authentication method, then configure:
 
 ```bash
 python3 "{baseDir}/scripts/configure_openclaw.py" \
-  --mode local \
-  --workspace-id "<workspace-customer-id>" \
+  --env-file "{baseDir}/.enterprise-config/openclaw.env" \
   --apply
 
 openclaw mcp doctor aws-vpc-flow --probe

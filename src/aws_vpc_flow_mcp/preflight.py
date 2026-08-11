@@ -5,9 +5,11 @@ import json
 import os
 import shutil
 import sys
+from pathlib import Path
 from typing import Any
 
 from .config import ConfigurationError, Settings
+from .env_file import EnvironmentFileError, apply_environment_file
 
 
 def question(key: str, prompt: str, required: bool = True) -> dict[str, Any]:
@@ -34,7 +36,7 @@ def collect(mode: str) -> dict[str, Any]:
             )
         )
 
-    if mode == "local" and not os.getenv("AWS_VPC_FLOW_LOCAL_AUTH_METHOD"):
+    if mode == "local" and not os.getenv("AWS_VPC_FLOW_AZURE_AUTH_MODE"):
         questions.append(
             question(
                 "local_identity",
@@ -155,18 +157,30 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="List missing prerequisites for the AWSVPCFlow Skill and MCP."
     )
-    parser.add_argument(
-        "--mode",
-        choices=("local", "server", "remote-client"),
-        required=True,
-    )
+    parser.add_argument("--mode", choices=("local", "server", "remote-client"))
+    parser.add_argument("--env-file")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    result = collect(args.mode)
+    if args.env_file:
+        try:
+            apply_environment_file(Path(args.env_file).expanduser())
+        except (OSError, EnvironmentFileError) as exc:
+            print(f"error: could not load --env-file: {exc}", file=sys.stderr)
+            return 2
+    mode = args.mode or os.getenv("AWS_VPC_FLOW_CONNECTION_MODE")
+    if mode == "remote":
+        mode = "remote-client"
+    if mode not in {"local", "server", "remote-client"}:
+        print(
+            "error: set --mode or AWS_VPC_FLOW_CONNECTION_MODE to local, remote, or server",
+            file=sys.stderr,
+        )
+        return 2
+    result = collect(mode)
     if args.json:
         print(json.dumps(result, indent=2))
     else:

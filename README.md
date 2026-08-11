@@ -34,6 +34,24 @@ On first use, the Skill determines whether to:
 It asks for missing non-secret prerequisites before changing configuration.
 It never asks users to paste secrets or bearer tokens into chat.
 
+## Customer configuration file
+
+Use a customer-owned, Git-ignored environment file instead of putting Azure
+identifiers in chat or reports:
+
+```bash
+mkdir -p .enterprise-config
+cp config/openclaw.env.example .enterprise-config/openclaw.env
+```
+
+The customer fills in `.enterprise-config/openclaw.env`. Workspace,
+subscription, tenant, group, Agent, and endpoint identifiers are not passwords,
+but they are sensitive environment metadata and should not be committed to the
+public repository.
+
+The file parser rejects keys containing `SECRET`, `TOKEN`, `PASSWORD`, or
+`PRIVATE_KEY`.
+
 ## Connect an existing MCP endpoint
 
 Required:
@@ -46,10 +64,7 @@ Required:
 
 ```bash
 python3 scripts/configure_openclaw.py \
-  --mode remote \
-  --url "<https-mcp-url>" \
-  --scope "aws_vpc_flow.read" \
-  --agents "<approved-agent-ids>" \
+  --env-file .enterprise-config/openclaw.env \
   --apply
 
 openclaw mcp login aws-vpc-flow
@@ -129,8 +144,7 @@ For development only:
 
 ```bash
 python3 scripts/configure_openclaw.py \
-  --mode local \
-  --workspace-id "<workspace-customer-id>" \
+  --env-file .enterprise-config/openclaw.env \
   --apply
 
 openclaw mcp doctor aws-vpc-flow --probe
