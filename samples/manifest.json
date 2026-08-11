@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-08-11T03:00:00Z",
+  "anchorTime": "2026-08-11T03:00:00Z",
+  "seed": 20260811,
+  "scale": 7,
+  "records": 5110,
+  "dataFile": "aws-vpc-flow-sample.json",
+  "bytes": 4182684,
+  "sha256": "afbb70dd5dcbe046db19533a03ae25491d256e0631d65d9c713beb88650dfc50",
+  "scenarios": {
+    "collection_health": 84,
+    "dns_spike": 490,
+    "high_volume_egress": 84,
+    "icmp_sweep": 280,
+    "ipv6": 70,
+    "lateral_movement": 126,
+    "normal": 2240,
+    "periodic_beaconing": 336,
+    "port_scan": 560,
+    "rdp_bruteforce": 315,
+    "ssh_bruteforce": 385,
+    "unusual_admin_egress": 140
+  }
+}

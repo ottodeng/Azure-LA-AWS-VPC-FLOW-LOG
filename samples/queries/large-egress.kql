@@ -1,0 +1,7 @@
+AWSVPCFlow
+| where TimeGenerated >= ago(24h)
+| where FlowDirection =~ "egress" and Action =~ "ACCEPT"
+| summarize Bytes=sum(Bytes), Packets=sum(Packets), Flows=count()
+    by SrcAddr, DstAddr, DstPort
+| where Bytes >= 100000000
+| order by Bytes desc

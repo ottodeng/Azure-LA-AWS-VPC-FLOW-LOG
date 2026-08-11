@@ -1,0 +1,4 @@
+AWSVPCFlow
+| where TimeGenerated >= ago(24h)
+| summarize Records=count() by LogStatus, bin(TimeGenerated, 1h)
+| order by TimeGenerated desc

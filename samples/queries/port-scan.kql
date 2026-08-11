@@ -1,0 +1,8 @@
+AWSVPCFlow
+| where TimeGenerated >= ago(1h)
+| where Action =~ "REJECT"
+| summarize Attempts=count(), DistinctPorts=dcount(DstPort),
+    DistinctTargets=dcount(DstAddr)
+    by SrcAddr, bin(TimeGenerated, 5m)
+| where DistinctPorts >= 20 or DistinctTargets >= 20
+| order by Attempts desc

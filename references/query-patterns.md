@@ -58,6 +58,30 @@ AWSVPCFlow
 | order by TimeGenerated desc
 ```
 
+## Periodic beaconing candidates
+
+```kusto
+AWSVPCFlow
+| where TimeGenerated >= ago(24h)
+| where FlowDirection =~ "egress" and Action =~ "ACCEPT"
+| summarize Flows=count(), FirstSeen=min(TimeGenerated),
+    LastSeen=max(TimeGenerated), Bytes=sum(Bytes)
+    by SrcAddr, DstAddr, DstPort
+| where Flows >= 20 and Bytes < 1000000
+| order by Flows desc
+```
+
+## ICMP sweep candidates
+
+```kusto
+AWSVPCFlow
+| where TimeGenerated >= ago(6h)
+| where Protocol == 1
+| summarize Attempts=count(), DistinctTargets=dcount(DstAddr) by SrcAddr
+| where DistinctTargets >= 20
+| order by DistinctTargets desc
+```
+
 ## Top talkers
 
 ```kusto

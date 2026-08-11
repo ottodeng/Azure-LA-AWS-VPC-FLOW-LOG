@@ -92,7 +92,7 @@ Analytics workspace, Sentinel onboarding state, DCR, and role assignment.
 python3 scripts/deploy_mock_azure.py \
   --subscription <subscription-id>
 source .azure-env
-python3 scripts/generate_mock_data.py
+python3 scripts/generate_mock_data.py --scale 1
 python3 scripts/ingest_mock_data.py
 ```
 
@@ -104,18 +104,24 @@ pinned Azure-Sentinel repository commit before creating the DCR.
 Azure ingestion role propagation can take several minutes. Retry ingestion if
 the first attempt returns HTTP 403 immediately after deployment.
 
-The generated data contains 577 deterministic records:
+The default generated data contains 730 deterministic records. Increase
+`--scale` to create a larger dataset. The repository sample uses `--scale 7`
+and contains 5,110 records.
 
 | Scenario | Records |
 | --- | ---: |
-| Normal web traffic | 320 |
-| Port scan | 80 |
-| SSH brute force | 55 |
-| DNS spike | 70 |
-| Large outbound transfer | 12 |
-| Lateral movement | 18 |
-| `NODATA` / `SKIPDATA` | 12 |
-| IPv6 | 10 |
+| Normal web traffic | 320 × scale |
+| Port scan | 80 × scale |
+| SSH brute force | 55 × scale |
+| RDP brute force | 45 × scale |
+| DNS spike | 70 × scale |
+| Large outbound transfer | 12 × scale |
+| Lateral movement | 18 × scale |
+| ICMP sweep | 40 × scale |
+| Periodic beaconing | 48 × scale |
+| Unusual admin egress | 20 × scale |
+| `NODATA` / `SKIPDATA` | 12 × scale |
+| IPv6 | 10 × scale |
 
 ## Cleanup
 
@@ -124,7 +130,7 @@ The default test resource group is isolated:
 ```bash
 az group delete \
   --subscription "$AZURE_SUBSCRIPTION_ID" \
-  --name rg-aws-vpc-flow-skill-dev
+  --name "<mock-resource-group>"
 ```
 
 Do not delete a customer workspace or resource group when cleaning up a test.

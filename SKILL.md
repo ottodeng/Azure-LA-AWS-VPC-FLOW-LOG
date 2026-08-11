@@ -44,12 +44,14 @@ the result. Never invent query results.
 ## Common requests
 
 - Rejected traffic, top rejected sources, or rejected destination ports.
-- Port scans or SSH/RDP brute-force behavior.
+- Port scans, ICMP sweeps, SSH/RDP brute-force behavior, or lateral movement.
 - Unusually large outbound transfers or traffic spikes.
+- Periodic beaconing or unusual administrative-port egress.
 - Unexpected public destinations or AWS service destinations.
 - Top talkers, protocols, VPCs, subnets, instances, and interfaces.
 - `NODATA` or `SKIPDATA` collection-health problems.
 - A timeline for a source IP, destination IP, instance, or interface.
 
 For local test-resource deployment and Mock ingestion, follow
-`references/setup.md`.
+`references/setup.md`. A 5,110-record synthetic dataset is available at
+`samples/aws-vpc-flow-sample.json`.

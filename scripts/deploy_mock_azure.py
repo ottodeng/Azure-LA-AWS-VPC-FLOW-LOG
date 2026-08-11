@@ -115,7 +115,7 @@ def dcr_body(location: str, workspace_resource_id: str) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--subscription", required=True)
-    parser.add_argument("--resource-group", default="rg-aws-vpc-flow-skill-dev")
+    parser.add_argument("--resource-group", default="rg-awsvpcflow-skill-demo")
     parser.add_argument("--location", default="eastus")
     parser.add_argument("--workspace-name")
     parser.add_argument("--dcr-name", default="dcr-aws-vpc-flow-skill-dev")
