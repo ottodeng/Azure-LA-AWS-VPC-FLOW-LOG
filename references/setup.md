@@ -1,5 +1,9 @@
 # Setup and deployment
 
+This document covers local fallback and Mock ingestion. For enterprise
+OpenClaw deployments, use `references/onboarding.md`,
+`references/enterprise-deployment.md`, and `references/permissions.md`.
+
 ## Install in OpenClaw
 
 Install directly from the Git repository:

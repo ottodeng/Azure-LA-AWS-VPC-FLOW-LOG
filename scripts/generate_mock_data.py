@@ -73,9 +73,7 @@ def record(
     }
 
 
-def generate(
-    seed: int, now: datetime, scale: int = 1
-) -> tuple[list[dict[str, Any]], Counter[str]]:
+def generate(seed: int, now: datetime, scale: int = 1) -> tuple[list[dict[str, Any]], Counter[str]]:
     if scale < 1:
         raise ValueError("scale must be at least 1")
     rng = random.Random(seed)
@@ -96,8 +94,9 @@ def generate(
             src, dst = rng.choice(public_clients), rng.choice(internal_hosts)
             dst_port = rng.choice([80, 443, 443, 443])
         else:
-            src, dst = rng.choice(internal_hosts), rng.choice(
-                ["192.0.2.10", "198.51.100.10", "203.0.113.10"]
+            src, dst = (
+                rng.choice(internal_hosts),
+                rng.choice(["192.0.2.10", "198.51.100.10", "203.0.113.10"]),
             )
             dst_port = rng.choice([443, 443, 80])
         add(
@@ -119,9 +118,7 @@ def generate(
         for offset, port in enumerate(range(20, 100)):
             add(
                 "port_scan",
-                when=now - timedelta(
-                    minutes=15 + campaign * 12, seconds=offset
-                ),
+                when=now - timedelta(minutes=15 + campaign * 12, seconds=offset),
                 src=scanner,
                 dst=scan_target,
                 src_port=41000 + campaign * 100 + offset,
@@ -135,9 +132,7 @@ def generate(
         for offset in range(55):
             add(
                 "ssh_bruteforce",
-                when=now - timedelta(
-                    minutes=35 + campaign * 20, seconds=offset * 8
-                ),
+                when=now - timedelta(minutes=35 + campaign * 20, seconds=offset * 8),
                 src=brute_source,
                 dst=f"10.20.2.{22 + campaign}",
                 src_port=50000 + campaign * 100 + offset,
@@ -151,9 +146,7 @@ def generate(
         for offset in range(45):
             add(
                 "rdp_bruteforce",
-                when=now - timedelta(
-                    minutes=50 + campaign * 18, seconds=offset * 9
-                ),
+                when=now - timedelta(minutes=50 + campaign * 18, seconds=offset * 9),
                 src=rdp_source,
                 dst=f"10.20.2.{80 + campaign}",
                 src_port=52000 + campaign * 100 + offset,
@@ -166,9 +159,7 @@ def generate(
         for offset in range(12):
             add(
                 "high_volume_egress",
-                when=now - timedelta(
-                    minutes=65 + campaign * 25, seconds=offset * 30
-                ),
+                when=now - timedelta(minutes=65 + campaign * 25, seconds=offset * 30),
                 src=f"10.20.3.{25 + campaign}",
                 dst=f"203.0.113.{200 + campaign}",
                 src_port=55000 + campaign * 100 + offset,
@@ -186,9 +177,7 @@ def generate(
         for offset in range(70):
             add(
                 "dns_spike",
-                when=now - timedelta(
-                    minutes=120 + campaign * 15, seconds=offset * 3
-                ),
+                when=now - timedelta(minutes=120 + campaign * 15, seconds=offset * 3),
                 src=f"10.20.1.{29 + campaign}",
                 dst=rng.choice(["192.0.2.53", "198.51.100.53"]),
                 src_port=30000 + campaign * 100 + offset,
@@ -203,9 +192,7 @@ def generate(
         for offset in range(18):
             add(
                 "lateral_movement",
-                when=now - timedelta(
-                    minutes=45 + campaign * 14, seconds=offset * 20
-                ),
+                when=now - timedelta(minutes=45 + campaign * 14, seconds=offset * 20),
                 src=f"10.20.1.{50 + campaign}",
                 dst=f"10.20.2.{30 + offset}",
                 src_port=47000 + campaign * 100 + offset,
@@ -219,9 +206,7 @@ def generate(
         for offset in range(40):
             add(
                 "icmp_sweep",
-                when=now - timedelta(
-                    minutes=90 + campaign * 10, seconds=offset * 4
-                ),
+                when=now - timedelta(minutes=90 + campaign * 10, seconds=offset * 4),
                 src=f"10.20.1.{70 + campaign}",
                 dst=f"10.20.3.{10 + offset}",
                 src_port=0,
@@ -236,7 +221,8 @@ def generate(
         for offset in range(48):
             add(
                 "periodic_beaconing",
-                when=now - timedelta(
+                when=now
+                - timedelta(
                     hours=6,
                     minutes=offset * 7 + campaign,
                 ),
@@ -253,9 +239,7 @@ def generate(
         for offset in range(20):
             add(
                 "unusual_admin_egress",
-                when=now - timedelta(
-                    hours=2 + campaign, minutes=offset * 2
-                ),
+                when=now - timedelta(hours=2 + campaign, minutes=offset * 2),
                 src=f"10.20.2.{100 + campaign}",
                 dst=f"198.51.100.{100 + campaign}",
                 src_port=58000 + campaign * 100 + offset,
@@ -269,9 +253,7 @@ def generate(
         for offset, status in enumerate(["NODATA"] * 5 + ["SKIPDATA"] * 7):
             add(
                 "collection_health",
-                when=now - timedelta(
-                    hours=3 + campaign, minutes=offset
-                ),
+                when=now - timedelta(hours=3 + campaign, minutes=offset),
                 src="-",
                 dst="-",
                 src_port=0,
@@ -287,9 +269,7 @@ def generate(
         for offset in range(10):
             add(
                 "ipv6",
-                when=now - timedelta(
-                    hours=4 + campaign, minutes=offset
-                ),
+                when=now - timedelta(hours=4 + campaign, minutes=offset),
                 src=f"2001:db8:{campaign + 1}::{offset + 1}",
                 dst="2001:db8:ffff::53",
                 src_port=60000 + campaign * 100 + offset,

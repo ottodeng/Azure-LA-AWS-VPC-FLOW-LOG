@@ -1,11 +1,10 @@
-import importlib.util
 import hashlib
+import importlib.util
 import ipaddress
 import json
 import pathlib
 import unittest
 from datetime import datetime, timezone
-
 
 MODULE_PATH = pathlib.Path(__file__).parents[1] / "scripts" / "generate_mock_data.py"
 SPEC = importlib.util.spec_from_file_location("generate_mock_data", MODULE_PATH)
@@ -25,9 +24,9 @@ class MockDataTests(unittest.TestCase):
         self.assertGreaterEqual(scenarios["rdp_bruteforce"], 40)
         self.assertGreaterEqual(scenarios["periodic_beaconing"], 40)
         self.assertGreaterEqual(scenarios["icmp_sweep"], 40)
-        self.assertEqual({"NODATA", "SKIPDATA"}, {
-            row["LogStatus"] for row in rows if row["LogStatus"] != "OK"
-        })
+        self.assertEqual(
+            {"NODATA", "SKIPDATA"}, {row["LogStatus"] for row in rows if row["LogStatus"] != "OK"}
+        )
         required = {
             "TimeGenerated",
             "AccountId",

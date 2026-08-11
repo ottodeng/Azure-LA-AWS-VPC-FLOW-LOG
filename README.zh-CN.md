@@ -1,129 +1,161 @@
-# Azure Log Analytics AWS VPC Flow Log Skill
+# 面向 OpenClaw 的企业 AWS VPC Flow Log Skill
 
 [English](README.md)
 
-面向 OpenClaw 的 Skill，用自然语言和受限的只读 KQL 查询 Azure Log
+通过 OpenClaw Skill 和受保护的 MCP Server，用自然语言分析 Azure Log
 Analytics 标准表 `AWSVPCFlow`。
 
-## 能力
+## 架构
 
-- 汇总允许和拒绝的流量。
-- 查询 Top IP、端口、协议、VPC、Subnet、Instance 和 Interface。
-- 检测端口扫描、ICMP 扫描、SSH/RDP 暴力破解和横向移动。
-- 检测大流量外传、管理端口外联和周期性 Beaconing。
-- 检查 `NODATA`、`SKIPDATA` 等采集健康问题。
-- 调查指定 IP、资源或时间范围。
-- 返回 KQL、证据、风险等级、不确定性和处理建议。
+```text
+安全分析员 → OpenClaw Agent → Skill → 企业 MCP → AWSVPCFlow
+                                         ├─ Entra 身份认证
+                                         ├─ 工具权限
+                                         ├─ KQL 安全策略
+                                         └─ 审计
+```
 
-## 安装
+企业模式下，OpenClaw 主机不保存 Azure 查询凭据。MCP 工作负载使用 Managed
+Identity 和表级查询权限。
+
+## 安装 Skill
 
 ```bash
 openclaw skills install git:ottodeng/Azure-LA-AWS-VPC-FLOW-LOG@main
 ```
 
-## 要求
+首次使用时，Skill 会判断：
 
-- Python 3.9+
-- Azure CLI `az`，或 `AZURE_LOG_ANALYTICS_TOKEN`
-- 包含 `AWSVPCFlow` 的 Log Analytics Workspace
-- Workspace 级别的 **Log Analytics Reader**
+1. 连接已有企业 MCP。
+2. 部署新的企业 MCP。
+3. 使用本地开发回退模式。
+
+Skill 会先询问缺少的非敏感前置条件，不会要求用户在对话中粘贴 Secret 或
+Bearer Token。
+
+## 连接已有 MCP
+
+需要：
+
+- 以 `/mcp` 结尾的 HTTPS URL
+- OAuth Scope，通常为 `aws_vpc_flow.read`
+- OpenClaw 企业 Auth Profile；只有授权服务器支持动态客户端注册时才可省略
+- 允许使用的 OpenClaw Agent ID
 
 ```bash
-export AZURE_SUBSCRIPTION_ID="<subscription-id>"
-export AZURE_LOG_ANALYTICS_WORKSPACE_ID="<workspace-customer-id>"
+python3 scripts/configure_openclaw.py \
+  --mode remote \
+  --url "<https-mcp-url>" \
+  --scope "aws_vpc_flow.read" \
+  --agents "<approved-agent-ids>" \
+  --apply
+
+openclaw mcp login aws-vpc-flow
+openclaw mcp doctor aws-vpc-flow --probe
 ```
 
-支持 Azure CLI 交互登录、Managed Identity、Service Principal 和预获取
-Token。详细配置见 [`references/setup.md`](references/setup.md)。
+## 部署 MCP Server
+
+仓库包含：
+
+- Python MCP SDK v2 Server
+- Streamable HTTP 和 stdio
+- Microsoft Entra JWT 验证
+- Managed Identity 查询 Log Analytics
+- 仅安全分析员可访问的权限策略
+- 结构化分析工具
+- 仅分析员可用的受限自定义 KQL
+- JSON 审计事件
+- Dockerfile
+- Azure Container Apps Bicep
+- 表级 Azure 权限脚本
+
+从以下文档开始：
+
+- [`references/onboarding.md`](references/onboarding.md)
+- [`references/enterprise-deployment.md`](references/enterprise-deployment.md)
+- [`references/permissions.md`](references/permissions.md)
+
+```bash
+uv sync --python 3.12
+python3 scripts/preflight.py --mode server
+```
+
+## MCP 工具
+
+| Tool | 用途 |
+| --- | --- |
+| `service_status` | 配置状态和调用者限制 |
+| `get_schema` | `AWSVPCFlow` 字段 |
+| `security_summary` | 综合安全风险 |
+| `top_talkers` | 最大流量来源和目标 |
+| `detect_port_scans` | 端口扫描 |
+| `detect_brute_force` | SSH/RDP 暴力破解 |
+| `detect_large_egress` | 大流量出口 |
+| `investigate_ip` | 指定 IP 时间线 |
+| `collection_health` | `OK`、`NODATA`、`SKIPDATA` |
+| `query_aws_vpc_flow` | 仅分析员可用的受限 KQL |
 
 ## 自然语言示例
 
 ```text
-帮我分析过去 24 小时有哪些重要安全风险。
-检查最近一小时有没有来源 IP 扫描大量端口。
+帮我分析过去 24 小时最重要的安全风险。
+检查最近一小时有没有端口扫描。
 找出暴力破解后又出现成功 SSH 或 RDP 连接的情况。
 找出超过 100 MB 的出口流量。
-检查是否出现 NODATA 或 SKIPDATA。
 调查 10.20.3.25 最近的全部活动。
+检查是否出现 NODATA 或 SKIPDATA。
 ```
 
-## Agent 工作流
+## 权限模型
 
-1. 读取 `SKILL.md`。
-2. 需要字段定义时读取 `references/schema.md`。
-3. 需要检测模式时读取 `references/query-patterns.md`。
-4. 生成从 `AWSVPCFlow` 开始的 KQL。
-5. 添加明确的 `TimeGenerated` 条件并限制输出。
-6. 执行：
+只支持 `security_analyst`：
 
-   ```bash
-   python3 "{baseDir}/scripts/query_aws_vpc_flow.py" \
-     --query '<KQL>' \
-     --timespan PT24H \
-     --format markdown
-   ```
+- 可使用结构化工具和受限自定义 KQL
+- 示例策略最多查询 30 天
+- 示例策略最多返回 2,000 行
 
-7. 返回 KQL 和查询证据，不得伪造结果。
+没有映射到指定 Entra Group 或 App Role 的用户默认拒绝访问。
+服务端会拒绝普通员工角色或默认放行策略。
 
-## 直接查询
+通过 [`config/access-policy.example.json`](config/access-policy.example.json)
+映射 Entra Group 或 App Role。
+
+## 本地回退
+
+仅用于开发：
 
 ```bash
-python3 scripts/query_aws_vpc_flow.py \
-  --query 'AWSVPCFlow | where TimeGenerated >= ago(1h) | take 10' \
-  --timespan PT1H \
-  --format markdown
+python3 scripts/configure_openclaw.py \
+  --mode local \
+  --workspace-id "<workspace-customer-id>" \
+  --apply
+
+openclaw mcp doctor aws-vpc-flow --probe
 ```
 
-支持 `json`、`markdown` 和 `table` 输出。
+本地模式要求 OpenClaw 主机安装 Python 3.10+、`uv` 并具备 Azure 身份。
 
 ## 合成数据
 
-`samples/aws-vpc-flow-sample.json` 包含 5,110 条合成记录，覆盖正常流量、
-扫描、暴力破解、外传、DNS 突增、横向移动、Beaconing、采集异常和 IPv6。
+`samples/aws-vpc-flow-sample.json` 包含 5,110 条合成记录，不包含真实 Azure
+标识或凭据。完整性信息见 `samples/manifest.json`。
 
-`samples/manifest.json` 包含场景数量和 SHA-256。样例不包含真实 Azure 标识
-或凭据，公网地址使用文档保留地址段。
+## 安全
 
-重新生成：
+- Log Analytics 只读查询
+- 固定 `AWSVPCFlow` 表
+- 服务端角色和工具权限
+- 查询时间和行数限制
+- 阻止跨 Workspace 和不安全 KQL
+- 审计中不记录 Token
+- 公开仓库不提交客户配置
 
-```bash
-python3 scripts/generate_mock_data.py \
-  --scale 7 \
-  --seed 20260811 \
-  --now 2026-08-11T03:00:00Z \
-  --output samples/aws-vpc-flow-sample.json \
-  --manifest samples/manifest.json
-```
-
-## 创建测试 Workspace
-
-```bash
-python3 scripts/deploy_mock_azure.py \
-  --subscription "<subscription-id>" \
-  --resource-group "<mock-resource-group>"
-
-source .azure-env
-
-python3 scripts/ingest_mock_data.py \
-  --input samples/aws-vpc-flow-sample.json
-```
-
-脚本会创建 Workspace、启用 Sentinel、安装官方 AWS VPC Flow Logs Solution、
-注册 `AWSVPCFlow` 并创建 Direct DCR。
-
-## 安全边界
-
-- 查询接口只读。
-- KQL 必须从 `AWSVPCFlow` 开始。
-- 阻止跨 Workspace、外部数据、Join、Union、Plugin、Management Command
-  和多语句查询。
-- 不要提交 Token 或 Secret。
-- `.azure-env` 和根目录生成的 Mock 文件默认忽略。
-
-## 参考
+## 关键文件
 
 - [`SKILL.md`](SKILL.md)
-- [`references/schema.md`](references/schema.md)
+- [`references/onboarding.md`](references/onboarding.md)
+- [`references/enterprise-deployment.md`](references/enterprise-deployment.md)
+- [`references/permissions.md`](references/permissions.md)
 - [`references/query-patterns.md`](references/query-patterns.md)
-- [`references/setup.md`](references/setup.md)
-- [Microsoft AWSVPCFlow 表结构](https://learn.microsoft.com/azure/azure-monitor/reference/tables/awsvpcflow)
+- [`infra/main.bicep`](infra/main.bicep)

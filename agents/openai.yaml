@@ -1,4 +1,4 @@
 interface:
   display_name: "Azure AWS VPC Flow Logs"
-  short_description: "Query AWSVPCFlow in Azure Log Analytics with safe read-only KQL."
-  default_prompt: "Analyze AWS VPC Flow Logs in Azure Log Analytics using read-only KQL."
+  short_description: "Analyze AWSVPCFlow through an enterprise read-only MCP service."
+  default_prompt: "Run onboarding first, then analyze AWSVPCFlow through the secured MCP tools."

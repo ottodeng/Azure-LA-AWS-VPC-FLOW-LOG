@@ -2,10 +2,7 @@ import importlib.util
 import pathlib
 import unittest
 
-
-MODULE_PATH = (
-    pathlib.Path(__file__).parents[1] / "scripts" / "query_aws_vpc_flow.py"
-)
+MODULE_PATH = pathlib.Path(__file__).parents[1] / "scripts" / "query_aws_vpc_flow.py"
 SPEC = importlib.util.spec_from_file_location("query_aws_vpc_flow", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
@@ -27,9 +24,7 @@ class QueryGuardTests(unittest.TestCase):
 
     def test_blocks_cross_workspace(self):
         with self.assertRaises(MODULE.QueryError):
-            MODULE.validate_query(
-                'workspace("other").AWSVPCFlow | where TimeGenerated >= ago(1h)'
-            )
+            MODULE.validate_query('workspace("other").AWSVPCFlow | where TimeGenerated >= ago(1h)')
 
     def test_blocks_external_data(self):
         with self.assertRaises(MODULE.QueryError):
@@ -39,9 +34,7 @@ class QueryGuardTests(unittest.TestCase):
 
     def test_blocks_join_to_other_table(self):
         with self.assertRaises(MODULE.QueryError):
-            MODULE.validate_query(
-                "AWSVPCFlow | join kind=inner (Heartbeat) on TenantId"
-            )
+            MODULE.validate_query("AWSVPCFlow | join kind=inner (Heartbeat) on TenantId")
 
     def test_blocks_management_command(self):
         with self.assertRaises(MODULE.QueryError):

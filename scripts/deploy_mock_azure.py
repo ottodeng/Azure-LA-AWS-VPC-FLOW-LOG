@@ -13,7 +13,6 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 STREAM = "Custom-AWSVPCFlowRaw"
 OUTPUT_STREAM = "Microsoft-AWSVPCFlow"
 DCR_API_VERSION = "2023-03-11"
@@ -62,9 +61,7 @@ class DeployError(RuntimeError):
 def run(command: list[str], *, parse_json: bool = False) -> Any:
     print("+ " + " ".join(shlex.quote(part) for part in command), file=sys.stderr)
     try:
-        result = subprocess.run(
-            command, check=True, capture_output=True, text=True, timeout=180
-        )
+        result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=180)
     except FileNotFoundError as exc:
         raise DeployError(f"Command not found: {command[0]}") from exc
     except subprocess.CalledProcessError as exc:
@@ -87,8 +84,7 @@ def dcr_body(location: str, workspace_resource_id: str) -> dict[str, Any]:
             "streamDeclarations": {
                 STREAM: {
                     "columns": [
-                        {"name": name, "type": column_type}
-                        for name, column_type in SOURCE_COLUMNS
+                        {"name": name, "type": column_type} for name, column_type in SOURCE_COLUMNS
                     ]
                 }
             },
@@ -214,9 +210,7 @@ def main() -> int:
         # Install Microsoft's pinned AWS VPC Flow Logs solution package. The
         # package registers the standard AWSVPCFlow table for this workspace.
         with tempfile.NamedTemporaryFile(suffix=".json") as template_file:
-            with urllib.request.urlopen(
-                SOLUTION_TEMPLATE_URL, timeout=60
-            ) as response:
+            with urllib.request.urlopen(SOLUTION_TEMPLATE_URL, timeout=60) as response:
                 template_file.write(response.read())
                 template_file.flush()
             az(
@@ -322,7 +316,8 @@ def main() -> int:
         env_lines = [
             f"export AZURE_SUBSCRIPTION_ID={shlex.quote(args.subscription)}",
             f"export AZURE_LOG_ANALYTICS_WORKSPACE_ID={shlex.quote(workspace_customer_id)}",
-            f"export AZURE_LOG_ANALYTICS_WORKSPACE_RESOURCE_ID={shlex.quote(workspace_resource_id)}",
+            "export AZURE_LOG_ANALYTICS_WORKSPACE_RESOURCE_ID="
+            f"{shlex.quote(workspace_resource_id)}",
             f"export AZURE_LOGS_INGESTION_ENDPOINT={shlex.quote(ingestion_endpoint)}",
             f"export AZURE_DCR_IMMUTABLE_ID={shlex.quote(immutable_id)}",
             f"export AZURE_DCR_STREAM={shlex.quote(STREAM)}",

@@ -1,131 +1,165 @@
-# Azure Log Analytics AWS VPC Flow Log Skill
+# Enterprise AWS VPC Flow Log Skill for OpenClaw
 
 [中文](README.zh-CN.md)
 
-OpenClaw skill for querying the Azure Log Analytics `AWSVPCFlow` table with
-natural language and guarded read-only KQL.
+An OpenClaw Skill plus a secured MCP server for natural-language analysis of
+the Azure Log Analytics `AWSVPCFlow` table.
 
-## Capabilities
+## Architecture
 
-- Summarize accepted and rejected traffic.
-- Find top IPs, ports, protocols, VPCs, subnets, instances, and interfaces.
-- Detect port scans, ICMP sweeps, SSH/RDP brute force, and lateral movement.
-- Detect large outbound transfers, administrative-port egress, and beaconing.
-- Check `NODATA` and `SKIPDATA` collection-health events.
-- Investigate a specific IP, resource, or time range.
-- Return KQL, evidence, severity, uncertainty, and recommended actions.
+```text
+Security Analyst → OpenClaw Agent → Skill → Enterprise MCP → AWSVPCFlow
+                                               ├─ Entra authorization
+                                               ├─ tool policy
+                                               ├─ guarded KQL
+                                               └─ audit
+```
 
-## Install
+The OpenClaw host does not need Azure credentials when using the enterprise
+MCP endpoint. The MCP workload uses managed identity and table-level query
+permission.
+
+## Install the Skill
 
 ```bash
 openclaw skills install git:ottodeng/Azure-LA-AWS-VPC-FLOW-LOG@main
 ```
 
-## Requirements
+On first use, the Skill determines whether to:
 
-- Python 3.9+
-- Azure CLI `az`, or `AZURE_LOG_ANALYTICS_TOKEN`
-- A Log Analytics workspace containing `AWSVPCFlow`
-- Workspace-scoped **Log Analytics Reader**
+1. Connect to an existing enterprise MCP endpoint.
+2. Deploy a new enterprise MCP endpoint.
+3. Use local development fallback.
+
+It asks for missing non-secret prerequisites before changing configuration.
+It never asks users to paste secrets or bearer tokens into chat.
+
+## Connect an existing MCP endpoint
+
+Required:
+
+- HTTPS MCP URL ending in `/mcp`
+- OAuth scope, normally `aws_vpc_flow.read`
+- Enterprise OpenClaw auth profile, unless the authorization server supports
+  dynamic client registration
+- Approved OpenClaw Agent IDs
 
 ```bash
-export AZURE_SUBSCRIPTION_ID="<subscription-id>"
-export AZURE_LOG_ANALYTICS_WORKSPACE_ID="<workspace-customer-id>"
+python3 scripts/configure_openclaw.py \
+  --mode remote \
+  --url "<https-mcp-url>" \
+  --scope "aws_vpc_flow.read" \
+  --agents "<approved-agent-ids>" \
+  --apply
+
+openclaw mcp login aws-vpc-flow
+openclaw mcp doctor aws-vpc-flow --probe
 ```
 
-Supported authentication: interactive Azure CLI login, managed identity,
-service principal, or a pre-acquired Log Analytics token. See
-[`references/setup.md`](references/setup.md).
+## Deploy the MCP server
+
+The repository includes:
+
+- Python MCP SDK v2 server
+- Streamable HTTP and stdio transports
+- Microsoft Entra JWT validation
+- Managed identity access to Log Analytics
+- Security Analyst-only access policy
+- Structured analysis tools
+- Guarded analyst-only custom KQL
+- JSON audit events
+- Dockerfile
+- Azure Container Apps Bicep
+- Table-level Azure permission script
+
+Start with:
+
+- [`references/onboarding.md`](references/onboarding.md)
+- [`references/enterprise-deployment.md`](references/enterprise-deployment.md)
+- [`references/permissions.md`](references/permissions.md)
+
+```bash
+uv sync --python 3.12
+python3 scripts/preflight.py --mode server
+```
+
+## MCP tools
+
+| Tool | Purpose |
+| --- | --- |
+| `service_status` | Configuration and caller limits |
+| `get_schema` | Supported `AWSVPCFlow` columns |
+| `security_summary` | Primary security-risk detectors |
+| `top_talkers` | Largest source/destination flows |
+| `detect_port_scans` | High distinct-port rejection activity |
+| `detect_brute_force` | SSH/RDP failures and accepted traffic |
+| `detect_large_egress` | Large accepted outbound transfers |
+| `investigate_ip` | Timeline for one IP address |
+| `collection_health` | `OK`, `NODATA`, and `SKIPDATA` |
+| `query_aws_vpc_flow` | Analyst-only guarded custom KQL |
 
 ## Example prompts
 
 ```text
 What are the most important security risks in the last 24 hours?
-Find source IPs that scanned many ports in the last hour.
+Find port scans in the last hour.
 Show brute-force attempts followed by accepted SSH or RDP traffic.
 Find outbound transfers larger than 100 MB.
-Check for NODATA or SKIPDATA events.
 Investigate all recent activity involving 10.20.3.25.
+Check for NODATA or SKIPDATA.
 ```
 
-## Agent workflow
+## Access model
 
-1. Read `SKILL.md`.
-2. Read `references/schema.md` when field definitions are needed.
-3. Read `references/query-patterns.md` for detection patterns.
-4. Generate KQL starting from `AWSVPCFlow`.
-5. Add an explicit `TimeGenerated` filter and bounded output.
-6. Run:
+Only `security_analyst` is supported:
 
-   ```bash
-   python3 "{baseDir}/scripts/query_aws_vpc_flow.py" \
-     --query '<KQL>' \
-     --timespan PT24H \
-     --format markdown
-   ```
+- Structured tools plus guarded custom KQL
+- Example maximum 30-day window
+- Example maximum 2,000 rows
 
-7. Return the KQL and evidence. Never fabricate results.
+Authenticated users without the approved Entra group or App Role are denied.
+The server rejects policies that add a general employee role or default access.
 
-## Direct query
+Map Entra groups or App Roles in
+[`config/access-policy.example.json`](config/access-policy.example.json).
+
+## Local fallback
+
+For development only:
 
 ```bash
-python3 scripts/query_aws_vpc_flow.py \
-  --query 'AWSVPCFlow | where TimeGenerated >= ago(1h) | take 10' \
-  --timespan PT1H \
-  --format markdown
+python3 scripts/configure_openclaw.py \
+  --mode local \
+  --workspace-id "<workspace-customer-id>" \
+  --apply
+
+openclaw mcp doctor aws-vpc-flow --probe
 ```
 
-Output formats: `json`, `markdown`, and `table`.
+Local mode requires Python 3.10+, `uv`, and an Azure identity on the OpenClaw
+host.
 
-## Synthetic dataset
+## Synthetic data
 
-`samples/aws-vpc-flow-sample.json` contains 5,110 synthetic records covering
-normal traffic, scans, brute force, exfiltration, DNS spikes, lateral movement,
-beaconing, collection failures, and IPv6.
+`samples/aws-vpc-flow-sample.json` contains 5,110 synthetic records. It has no
+live Azure identifiers or credentials. Integrity data is in
+`samples/manifest.json`.
 
-`samples/manifest.json` contains scenario counts and SHA-256. The sample has no
-live Azure identifiers or credentials and uses documentation IP ranges.
+## Security
 
-Regenerate it:
+- Read-only Log Analytics query path
+- Exact `AWSVPCFlow` table
+- Server-side role and tool authorization
+- Query time/row limits
+- Cross-workspace and unsafe KQL blocking
+- Token-free audit events
+- No customer configuration committed to the public repository
 
-```bash
-python3 scripts/generate_mock_data.py \
-  --scale 7 \
-  --seed 20260811 \
-  --now 2026-08-11T03:00:00Z \
-  --output samples/aws-vpc-flow-sample.json \
-  --manifest samples/manifest.json
-```
-
-## Create a test workspace
-
-```bash
-python3 scripts/deploy_mock_azure.py \
-  --subscription "<subscription-id>" \
-  --resource-group "<mock-resource-group>"
-
-source .azure-env
-
-python3 scripts/ingest_mock_data.py \
-  --input samples/aws-vpc-flow-sample.json
-```
-
-This creates a workspace, enables Sentinel, installs the official AWS VPC Flow
-Logs solution, registers `AWSVPCFlow`, and creates a direct ingestion DCR.
-
-## Safety
-
-- Query access is read-only.
-- KQL must start from `AWSVPCFlow`.
-- Cross-workspace, external-data, join, union, plugin, management-command, and
-  multi-statement queries are rejected.
-- Do not commit tokens or secrets.
-- `.azure-env` and root-level generated Mock files are ignored.
-
-## References
+## Key files
 
 - [`SKILL.md`](SKILL.md)
-- [`references/schema.md`](references/schema.md)
+- [`references/onboarding.md`](references/onboarding.md)
+- [`references/enterprise-deployment.md`](references/enterprise-deployment.md)
+- [`references/permissions.md`](references/permissions.md)
 - [`references/query-patterns.md`](references/query-patterns.md)
-- [`references/setup.md`](references/setup.md)
-- [Microsoft AWSVPCFlow schema](https://learn.microsoft.com/azure/azure-monitor/reference/tables/awsvpcflow)
+- [`infra/main.bicep`](infra/main.bicep)

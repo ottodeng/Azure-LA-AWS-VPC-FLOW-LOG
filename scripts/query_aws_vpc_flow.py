@@ -13,7 +13,6 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-
 LOGS_ENDPOINT = "https://api.loganalytics.azure.com/v1/workspaces/{workspace_id}/query"
 TOKEN_RESOURCES = (
     "https://api.loganalytics.azure.com",
@@ -41,9 +40,7 @@ def validate_query(query: str) -> str:
         raise QueryError("KQL query is empty.")
     without_comments = re.sub(r"/\*.*?\*/", "", normalized, flags=re.DOTALL)
     without_comments = re.sub(r"(?m)//.*$", "", without_comments).lstrip()
-    if not re.match(
-        rf"(?i){re.escape(ALLOWED_TABLE)}(?:\s|\|)", without_comments
-    ):
+    if not re.match(rf"(?i){re.escape(ALLOWED_TABLE)}(?:\s|\|)", without_comments):
         raise QueryError(f"KQL must start from the {ALLOWED_TABLE} table.")
     for label, pattern in BLOCKED_PATTERNS.items():
         if re.search(pattern, normalized, re.IGNORECASE):
@@ -72,9 +69,7 @@ def get_access_token(subscription_id: str | None) -> str:
         if subscription_id:
             command[3:3] = ["--subscription", subscription_id]
         try:
-            result = subprocess.run(
-                command, check=True, capture_output=True, text=True, timeout=30
-            )
+            result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=30)
         except FileNotFoundError as exc:
             raise QueryError(
                 "Azure CLI was not found. Install `az` or set AZURE_LOG_ANALYTICS_TOKEN."
@@ -136,7 +131,7 @@ def normalized_result(
             {
                 "name": table.get("name", "PrimaryResult"),
                 "columns": columns,
-                "rows": [dict(zip(columns, row)) for row in rows],
+                "rows": [dict(zip(columns, row, strict=False)) for row in rows],
             }
         )
     return {
@@ -167,9 +162,7 @@ def format_markdown(result: dict[str, Any]) -> str:
         sections.append("| " + " | ".join(["---"] * len(columns)) + " |")
         for row in rows:
             sections.append(
-                "| "
-                + " | ".join(markdown_escape(row.get(column)) for column in columns)
-                + " |"
+                "| " + " | ".join(markdown_escape(row.get(column)) for column in columns) + " |"
             )
         if not rows:
             sections.append(f"| {' | '.join([''] * len(columns))} |")
@@ -216,9 +209,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-rows", type=int, default=200)
     parser.add_argument("--timeout", type=int, default=60)
-    parser.add_argument(
-        "--format", choices=("json", "markdown", "table"), default="json"
-    )
+    parser.add_argument("--format", choices=("json", "markdown", "table"), default="json")
     parser.add_argument(
         "--dry-run", action="store_true", help="Validate and print KQL without calling Azure."
     )
@@ -241,9 +232,7 @@ def main() -> int:
             print(query)
             return 0
         if not args.workspace_id:
-            raise QueryError(
-                "Set AZURE_LOG_ANALYTICS_WORKSPACE_ID or pass --workspace-id."
-            )
+            raise QueryError("Set AZURE_LOG_ANALYTICS_WORKSPACE_ID or pass --workspace-id.")
         payload = query_logs(
             args.workspace_id,
             query,

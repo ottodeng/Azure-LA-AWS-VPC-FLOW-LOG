@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+.azure-env
+mock-data.json
+.mock-manifest.json
+samples
+tests
+infra

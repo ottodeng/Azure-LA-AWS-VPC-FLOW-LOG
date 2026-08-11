@@ -15,7 +15,6 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 TOKEN_RESOURCE = "https://monitor.azure.com/"
 API_VERSION = "2023-01-01"
 
@@ -39,9 +38,7 @@ def az_token(subscription_id: str | None) -> str:
     if subscription_id:
         command[3:3] = ["--subscription", subscription_id]
     try:
-        result = subprocess.run(
-            command, check=True, capture_output=True, text=True, timeout=30
-        )
+        result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=30)
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         detail = getattr(exc, "stderr", "") or str(exc)
         raise IngestionError(f"Could not acquire Azure Monitor token: {detail}") from exc
@@ -70,13 +67,9 @@ def post_batch(url: str, token: str, rows: list[dict[str, Any]]) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="mock-data.json")
-    parser.add_argument(
-        "--endpoint", default=os.getenv("AZURE_LOGS_INGESTION_ENDPOINT")
-    )
+    parser.add_argument("--endpoint", default=os.getenv("AZURE_LOGS_INGESTION_ENDPOINT"))
     parser.add_argument("--dcr-immutable-id", default=os.getenv("AZURE_DCR_IMMUTABLE_ID"))
-    parser.add_argument(
-        "--stream", default=os.getenv("AZURE_DCR_STREAM", "Custom-AWSVPCFlowRaw")
-    )
+    parser.add_argument("--stream", default=os.getenv("AZURE_DCR_STREAM", "Custom-AWSVPCFlowRaw"))
     parser.add_argument("--subscription", default=os.getenv("AZURE_SUBSCRIPTION_ID"))
     parser.add_argument("--batch-size", type=int, default=200)
     parser.add_argument("--wait-between-batches", type=float, default=1.0)
@@ -87,9 +80,7 @@ def main() -> int:
     args = parse_args()
     try:
         if not args.endpoint or not args.dcr_immutable_id:
-            raise IngestionError(
-                "Set AZURE_LOGS_INGESTION_ENDPOINT and AZURE_DCR_IMMUTABLE_ID."
-            )
+            raise IngestionError("Set AZURE_LOGS_INGESTION_ENDPOINT and AZURE_DCR_IMMUTABLE_ID.")
         rows = json.loads(Path(args.input).read_text(encoding="utf-8"))
         if not isinstance(rows, list) or not rows:
             raise IngestionError("Input must be a non-empty JSON array.")

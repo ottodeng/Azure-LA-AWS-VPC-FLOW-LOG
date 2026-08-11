@@ -1,0 +1,28 @@
+{
+  "defaultRole": null,
+  "roles": {
+    "security_analyst": {
+      "tools": [
+        "service_status",
+        "get_schema",
+        "security_summary",
+        "top_talkers",
+        "detect_port_scans",
+        "detect_brute_force",
+        "detect_large_egress",
+        "investigate_ip",
+        "collection_health",
+        "query_aws_vpc_flow"
+      ],
+      "maxTimespanHours": 720,
+      "maxRows": 2000,
+      "allowCustomKql": true
+    }
+  },
+  "groupRoleMappings": {
+    "<security-analyst-group-object-id>": "security_analyst"
+  },
+  "roleClaimMappings": {
+    "AWSVPCFlow.SecurityAnalyst": "security_analyst"
+  }
+}

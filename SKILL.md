@@ -1,57 +1,147 @@
 ---
 name: azure-la-aws-vpc-flow
-description: Query and analyze the AWSVPCFlow table in Azure Log Analytics using natural-language requests and guarded read-only KQL.
+description: Enterprise onboarding and read-only analysis of Azure Log Analytics AWSVPCFlow through a secured MCP server or local fallback.
 ---
 
 # Azure Log Analytics AWS VPC Flow
 
-Translate the user's request into KQL, run it against `AWSVPCFlow`, and explain
-the result. Never invent query results.
+Use natural language to analyze `AWSVPCFlow`. Prefer the centralized enterprise
+MCP server. Use the local CLI/MCP fallback only when the user explicitly
+chooses local evaluation.
 
-## Workflow
+## Mandatory onboarding gate
 
-1. Read `references/schema.md` when column meaning or type is relevant.
-2. Read `references/query-patterns.md` for anomaly-detection patterns.
-3. Convert the request to KQL that starts from `AWSVPCFlow`.
-4. Add an explicit `TimeGenerated` filter. Use the user's range, or the last
-   24 hours when no range is given.
-5. Keep result sets small with `top`, `take`, or aggregation.
-6. Execute:
+Before querying, determine which mode applies:
 
-   ```bash
-   python3 "{baseDir}/scripts/query_aws_vpc_flow.py" \
-     --query '<KQL>' \
-     --timespan PT24H \
-     --format markdown
-   ```
+1. Existing enterprise MCP endpoint.
+2. New enterprise MCP deployment.
+3. Local development fallback.
 
-7. Show the KQL, summarize the evidence, call out uncertainty, and suggest the
-   next read-only query when useful.
+Run the relevant preflight:
 
-## Safety rules
+```bash
+python3 "{baseDir}/scripts/preflight.py" --mode remote-client
+python3 "{baseDir}/scripts/preflight.py" --mode server
+python3 "{baseDir}/scripts/preflight.py" --mode local
+```
+
+Read `references/onboarding.md` and ask only for missing information.
+
+Never ask the user to paste a client secret, bearer token, certificate private
+key, Azure credential file, or OpenClaw OAuth database value into chat.
+
+## Existing enterprise MCP
+
+Collect:
+
+- HTTPS MCP URL including `/mcp`.
+- Delegated OAuth scope.
+- Existing OpenClaw auth profile ID, or confirmation that the authorization
+  server supports dynamic client registration.
+- Approved OpenClaw Agent IDs.
+- Whether those Agents may use advanced custom KQL.
+
+Configure:
+
+```bash
+python3 "{baseDir}/scripts/configure_openclaw.py" \
+  --mode remote \
+  --url "<mcp-url>" \
+  --scope "aws_vpc_flow.read" \
+  --agents "<approved-agent-ids>" \
+  --apply
+
+openclaw mcp login aws-vpc-flow
+openclaw mcp doctor aws-vpc-flow --probe
+```
+
+Add `--auth-profile "<profile-id>"` when supplied.
+
+Do not query until `doctor --probe` succeeds and lists the expected tools.
+
+## New enterprise MCP deployment
+
+Read:
+
+- `references/enterprise-deployment.md`
+- `references/permissions.md`
+- `config/access-policy.example.json`
+
+Collect:
+
+- Entra tenant ID.
+- Azure subscription, region, and MCP deployment resource group.
+- Existing Log Analytics workspace resource ID and customer ID.
+- Confirmation that the table is exactly `AWSVPCFlow`.
+- Container registry/image destination.
+- MCP API audience and delegated OAuth scope.
+- Security Analyst group ID or `AWSVPCFlow.SecurityAnalyst` App Role.
+- Network exposure and audit-retention requirements.
+- OpenClaw origin and approved Agent IDs.
+
+Present the deployment and permission plan before applying Azure or Entra
+changes. Require administrator approval for role definitions, assignments,
+App Registration changes, and ingress changes.
+
+After the user supplies the approved identifiers, generate ignored local
+configuration with `scripts/generate_enterprise_config.py`. Never place its
+output under version control.
+
+Never write customer values into this repository.
+
+## Local fallback
+
+Collect the workspace customer ID and authentication method, then configure:
+
+```bash
+python3 "{baseDir}/scripts/configure_openclaw.py" \
+  --mode local \
+  --workspace-id "<workspace-customer-id>" \
+  --apply
+
+openclaw mcp doctor aws-vpc-flow --probe
+```
+
+Local mode places Azure authentication on the OpenClaw host and is not the
+recommended enterprise deployment.
+
+## Tool selection
+
+Use structured tools before custom KQL:
+
+- Broad risk request: `security_summary`
+- Heavy traffic: `top_talkers`
+- Port scanning: `detect_port_scans`
+- SSH/RDP attempts: `detect_brute_force`
+- Large outbound transfers: `detect_large_egress`
+- Specific address: `investigate_ip`
+- Connector health: `collection_health`
+- Schema: `get_schema`
+
+Use `query_aws_vpc_flow` only when:
+
+- Structured tools cannot answer the question.
+- The caller is authorized as `security_analyst`.
+- The query starts from `AWSVPCFlow`.
+
+## Response requirements
+
+- State the queried time range.
+- Distinguish evidence from inference.
+- Include severity and concrete records or aggregates.
+- Include KQL when the tool returns it.
+- State that flow behavior alone does not prove compromise.
+- Recommend the next read-only investigation.
+- Never fabricate missing results.
+
+## Safety
 
 - Query only `AWSVPCFlow`.
-- Use only the Azure Log Analytics query endpoint. It is read-only.
-- Do not use cross-workspace, cross-cluster, external-data, or management
-  commands.
-- Do not run deployment or ingestion scripts unless the user explicitly asks.
-- Do not expose access tokens, client secrets, tenant secrets, or raw Azure CLI
-  credential files.
-- Treat IP addresses, account IDs, instance IDs, and interface IDs as sensitive.
-- If authentication or configuration is missing, read `references/setup.md`
-  and report the exact missing variable or Azure role.
-
-## Common requests
-
-- Rejected traffic, top rejected sources, or rejected destination ports.
-- Port scans, ICMP sweeps, SSH/RDP brute-force behavior, or lateral movement.
-- Unusually large outbound transfers or traffic spikes.
-- Periodic beaconing or unusual administrative-port egress.
-- Unexpected public destinations or AWS service destinations.
-- Top talkers, protocols, VPCs, subnets, instances, and interfaces.
-- `NODATA` or `SKIPDATA` collection-health problems.
-- A timeline for a source IP, destination IP, instance, or interface.
-
-For local test-resource deployment and Mock ingestion, follow
-`references/setup.md`. A 5,110-record synthetic dataset is available at
-`samples/aws-vpc-flow-sample.json`.
+- Provision access only for approved Security Analysts; do not create a
+  general employee role or default authenticated-user access.
+- Do not bypass MCP role or tool restrictions.
+- Do not switch to local execution silently when enterprise MCP fails.
+- Do not expose workspace IDs, group IDs, account IDs, IP addresses, or audit
+  data beyond the user's authorized scope.
+- Do not perform deployment, permission, or Entra changes without explicit
+  approval.
